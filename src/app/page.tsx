@@ -425,14 +425,14 @@ export default function SoccerManagementApp() {
     }
   }, [])
 
-  // Atualizar formação quando mudar quantidade de jogadores
+  // Atualizar formação quando mudar quantidade de jogadores - CORRIGIDO PARA EVITAR LOOP
   useEffect(() => {
     const formations = getFormationForPlayers(teamSettings.playersPerTeam)
     const formationKeys = Object.keys(formations)
-    if (formationKeys.length > 0 && !formationKeys.includes(selectedFormation)) {
+    if (formationKeys.length > 0 && !formationKeys.includes(selectedFormation))
       setSelectedFormation(formationKeys[0])
-    }
-  }, [teamSettings.playersPerTeam, selectedFormation])
+    // serialize para manter estrutura constante
+  }, [JSON.stringify(teamSettings.playersPerTeam), selectedFormation])
 
   // Salvar dados no localStorage sempre que houver mudanças - COM PROTEÇÃO
   useEffect(() => {
@@ -442,7 +442,9 @@ export default function SoccerManagementApp() {
   }, [players])
 
   useEffect(() => {
-    safeLocalStorageSet('soccerManager_staff', technicalStaff)
+    if (technicalStaff.length > 0) {
+      safeLocalStorageSet('soccerManager_staff', technicalStaff)
+    }
   }, [technicalStaff])
 
   useEffect(() => {
@@ -471,18 +473,27 @@ export default function SoccerManagementApp() {
         alert('Credenciais de administrador inválidas!')
       }
     } else if (userType === 'athlete') {
-      // Verificar se é um atleta cadastrado
-      const player = players.find(p => 
-        p.username && p.password && 
-        p.username === loginForm.username && 
-        p.password === loginForm.password
-      )
+      // Verificar se é um atleta cadastrado com credenciais padrão ou personalizadas
+      const player = players.find(p => {
+        // Verificar credenciais personalizadas primeiro
+        if (p.username && p.password) {
+          return p.username === loginForm.username && p.password === loginForm.password
+        }
+        // Fallback para credenciais padrão se não tiver personalizadas
+        return loginForm.username === 'jogador' && loginForm.password === 'jogador123'
+      })
+      
       if (player) {
         setCurrentUser('player')
         setLoggedInPlayer(player)
         setCurrentView('dashboard')
       } else {
-        alert('Credenciais de atleta inválidas! Verifique se você foi cadastrado pelo administrador e se suas credenciais estão corretas.')
+        // Verificar se existe pelo menos um jogador cadastrado
+        if (players.length === 0) {
+          alert('Nenhum atleta foi cadastrado ainda. Entre em contato com o administrador.')
+        } else {
+          alert('Credenciais inválidas! Use "jogador" e "jogador123" ou as credenciais fornecidas pelo administrador.')
+        }
       }
     }
   }
@@ -1116,7 +1127,8 @@ export default function SoccerManagementApp() {
                 </p>
               ) : (
                 <p className="text-white/60 text-xs">
-                  Use as credenciais fornecidas pelo administrador
+                  <strong>Credenciais padrão:</strong> jogador / jogador123<br/>
+                  Ou use as credenciais fornecidas pelo administrador
                 </p>
               )}
             </div>
